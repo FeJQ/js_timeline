@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="./css/layui.css" media="all">
+    <title>Document</title>
+    <style>
+        html {
+            overflow-y: scroll;
+        }
+
+        html {
+            overflow: auto;
+        }
+
+        html {
+            overflow: hidden;
+        }
+
+
+        #container {
+            overflow: scroll;
+            /* width: 800px; */
+            margin: 0 auto;
+            padding: 0 30px;
+
+        }
+
+        #slideTest1 {
+            width: 100px;
+            height: 30px;
+        }
+    </style>
+
+</head>
+
+<body>
+    </br>
+    <div id="container">
+        <fieldset class="layui-elem-field layui-field-title" style="margin-top: 30px;">
+            <legend>基本滑块</legend>
+        </fieldset>
+        <div id="slideTest1" class="demo-slider"></div>
+        <canvas id="video-progress" width="8000" height="100"></canvas>
+    </div>
+</body>
+<script src="./layui.js"></script>
+<script>
+    // 默认画布宽度
+    const defaultVideoProgresstWidth = 800;
+
+    // 默认线条之间的距离
+    const defaultVideoProgressDistance = 20;
+
+    // 红色线条数
+    const redLineCount = 10;
+
+    // 每两个红色线条之间的黑色线条数
+    const sectionCount = 10;
+
+    // 游标刻度
+    let vernierValue = 0;
+
+    const scalePaddingLeft = 0;
+
+    layui.use('slider', function () {
+        var $ = layui.$, slider = layui.slider;
+        //默认滑块
+        slider.render({
+            elem: '#slideTest1',
+            change: function (value) {
+                var canvasObj = document.getElementById("video-progress");
+                //canvasObj.style.width= 10+"px";
+                canvasObj.style.height = "100px";
+                renderVideoProgress(value);
+
+            }
+        });
+    });
+
+
+    function drawScale(canvasContext, factor) {
+        for (var i = 0; i < redLineCount; i++) {
+            // 画红色线条
+            canvasContext.beginPath();
+            canvasContext.lineWidth = 1;
+            canvasContext.strokeStyle = "red";
+            var x = (i * 10) * (defaultVideoProgressDistance + factor) + scalePaddingLeft;
+            //console.log("x1=" + x);
+            canvasContext.moveTo(x + 0.5, 0);
+            canvasContext.lineTo(x + 0.5, 30);
+            canvasContext.stroke();
+            canvasContext.closePath();
+            canvasContext.beginPath();
+            if (i == redLineCount - 1) break;
+            // 画黑色线条
+            for (var j = 1; j < sectionCount; j++) {
+                canvasContext.lineWidth = 1;
+                canvasContext.strokeStyle = "black";
+                var x = (i * 10 + j) * (defaultVideoProgressDistance + factor) + scalePaddingLeft;
+                //console.log("x2=" + x);
+                canvasContext.moveTo(x + 0.5, 0);
+                canvasContext.lineTo(x + 0.5, 15);
+                canvasContext.stroke();
+            }
+            canvasContext.closePath();
+        }
+    }
+
+    function drawVernier(canvasContext, offsetX) {
+        canvasContext.beginPath();
+        canvasContext.fillStyle = "#FF0000";
+        canvasContext.fillRect(offsetX, 0, 12, 10);
+        canvasContext.strokeStyle = "red";
+        canvasContext.lineWidth = 2;
+        canvasContext.moveTo(offsetX + 6, 0);
+        canvasContext.lineTo(offsetX + 6, 150);
+        canvasContext.closePath();
+        canvasContext.stroke();
+        console.log("offsetX="+offsetX);
+        
+    }
+
+
+    function renderVideoProgress(factor) {
+
+        if (factor > 100.0 || factor < 0.0) {
+            console.log("Unlegal render factor:" + factor);
+            return;
+        }
+
+        clearCanvas("video-progress");
+        var canvasObj = document.getElementById("video-progress");
+        var ctx = canvasObj.getContext("2d");
+        //drawScale(ctx, factor);
+        drawVernier(ctx, 0);
+
+
+        var moveFlag = false;
+        var clickFlag = true;
+        canvasObj.onmousedown = function (e) {
+            moveFlag = true;
+            clickFlag = true;
+            var clickEvent = window.event || e;
+           
+           
+            var mwidth = clickEvent.clientX - canvasObj.offsetLeft;
+            var mheight = clickEvent.clientY - canvasObj.offsetTop;
+
+
+            console.log("click width="+mwidth+",click height="+e.offsetX);
+            if (!ctx.isPointInPath(e.offsetX, e.offsetY))
+            {   
+                console.log("未点击游标");
+                return;
+            }
+            console.log("点击游标");
+
+
+
+            document.onmousemove = function (e) {
+                clickFlag = false;
+                var moveEvent = window.event || e;
+                if (moveFlag) {
+                    canvasObj.style.left = moveEvent.clientX - mwidth + "px";
+                    canvasObj.style.top = moveEvent.clientY - mheight + "px";
+                    ////              将鼠标坐标传给Canvas中的图像
+                    X = moveEvent.clientX - mwidth;
+                    Y = moveEvent.clientY - mheight;
+                    console.log("x="+X+",y="+Y);
+
+                    
+
+
+                    ////              下面四个条件为限制div以及图像的活动边界
+                    if (moveEvent.clientX <= mwidth) {
+                        canvasObj.style.left = 0 + "px";
+                        X = 0;
+                    }
+                  
+                    canvasObj.onmouseup = function () {
+                        moveFlag = false;
+                        if (clickFlag) {
+                            alert("点击生效");
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    function clearCanvas(id) {
+        var c = document.getElementById(id);
+        var cxt = c.getContext("2d");
+        cxt.clearRect(0, 0, c.width, c.height);
+    }
+
+
+    renderVideoProgress(0);
+</script>
+
+</html>
