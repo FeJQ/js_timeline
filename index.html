@@ -61,10 +61,17 @@
     // 每两个红色线条之间的黑色线条数
     const sectionCount = 10;
 
-    // 游标刻度
-    let vernierValue = 0;
+    //当scaleFactor为零时游标刻度偏移px
+    let vernierValuePosZero = 0;
+
+    // 实际游标刻度偏移px
+    let vernierValuePos = 0;
 
     const scalePaddingLeft = 0;
+
+    // 缩放因子
+    let scaleFactor = 0;
+
 
     layui.use('slider', function () {
         var $ = layui.$, slider = layui.slider;
@@ -72,10 +79,14 @@
         slider.render({
             elem: '#slideTest1',
             change: function (value) {
+                scaleFactor = value;
                 var canvasObj = document.getElementById("video-progress");
                 //canvasObj.style.width= 10+"px";
                 canvasObj.style.height = "100px";
-                renderVideoProgress(value);
+
+                vernierValuePos =  (defaultVideoProgressDistance+scaleFactor)/defaultVideoProgressDistance*vernierValuePosZero;
+                console.log("vernierValuePos="+vernierValuePos);
+                renderVideoProgress(canvasObj,scaleFactor);
 
             }
         });
@@ -113,36 +124,42 @@
     function drawVernier(canvasContext, offsetX) {
         canvasContext.beginPath();
         canvasContext.fillStyle = "#FF0000";
-        canvasContext.fillRect(offsetX, 0, 12, 10);
+        canvasContext.rect(offsetX, 0, 9, 10);
         canvasContext.strokeStyle = "red";
+        canvasContext.fill();
         canvasContext.lineWidth = 2;
-        canvasContext.moveTo(offsetX + 6, 0);
-        canvasContext.lineTo(offsetX + 6, 150);
+
+        canvasContext.rect(offsetX+4, 0, 1, 150);
+        canvasContext.fill();
+        
         canvasContext.closePath();
-        canvasContext.stroke();
-        console.log("offsetX="+offsetX);
+        //console.log("offsetX="+offsetX);
         
     }
 
 
-    function renderVideoProgress(factor) {
+    function renderVideoProgress(canvasObj,factor) {
 
         if (factor > 100.0 || factor < 0.0) {
             console.log("Unlegal render factor:" + factor);
             return;
         }
-
         clearCanvas("video-progress");
-        var canvasObj = document.getElementById("video-progress");
         var ctx = canvasObj.getContext("2d");
-        //drawScale(ctx, factor);
-        drawVernier(ctx, 0);
+        drawScale(ctx, factor);
+        drawVernier(ctx, vernierValuePos);
 
 
+        
+    }
+
+    function bindVernierEvent(canvasObj)
+    {
+        var ctx = canvasObj.getContext("2d");
         var moveFlag = false;
         var clickFlag = true;
         canvasObj.onmousedown = function (e) {
-            moveFlag = true;
+           
             clickFlag = true;
             var clickEvent = window.event || e;
            
@@ -150,14 +167,23 @@
             var mwidth = clickEvent.clientX - canvasObj.offsetLeft;
             var mheight = clickEvent.clientY - canvasObj.offsetTop;
 
+            let clickPosXTemp = clickEvent.clientX;
+
+            // ctx.fillRect(mwidth, mheight, 2, 2);
+            // ctx.fillStyle = "#FFFFFF";
+            // ctx.stroke();
+
+            // 再绘制一遍游标,让其成为当前路径
+            drawVernier(ctx, vernierValuePos);
 
             console.log("click width="+mwidth+",click height="+e.offsetX);
-            if (!ctx.isPointInPath(e.offsetX, e.offsetY))
+            if (!ctx.isPointInPath(e.offsetX, e.offsetY) )
             {   
                 console.log("未点击游标");
                 return;
             }
-            console.log("点击游标");
+            moveFlag = true;
+            //console.log("点击游标");
 
 
 
@@ -167,24 +193,31 @@
                 if (moveFlag) {
                     canvasObj.style.left = moveEvent.clientX - mwidth + "px";
                     canvasObj.style.top = moveEvent.clientY - mheight + "px";
-                    ////              将鼠标坐标传给Canvas中的图像
-                    X = moveEvent.clientX - mwidth;
-                    Y = moveEvent.clientY - mheight;
-                    console.log("x="+X+",y="+Y);
+                    // 计算移动的距离
+                    console.log("moveEvent.clientX="+moveEvent.clientX,"clickEvent.clientX="+clickEvent.clientX );
+                    X = moveEvent.clientX - clickEvent.clientX;
+                    Y = moveEvent.clientY - clickEvent.clientY;
+                    //console.log("x="+X+",y="+Y);
+
+                    let relativeMovedOffsetX =  moveEvent.clientX-clickPosXTemp;
+                    clickPosXTemp =  moveEvent.clientX;
+                    vernierValuePos+=relativeMovedOffsetX;
+                    vernierValuePosZero = vernierValuePos;
+                    renderVideoProgress(canvasObj,scaleFactor);
 
                     
 
 
                     ////              下面四个条件为限制div以及图像的活动边界
-                    if (moveEvent.clientX <= mwidth) {
-                        canvasObj.style.left = 0 + "px";
-                        X = 0;
-                    }
+                    // if (moveEvent.clientX <= mwidth) {
+                    //     canvasObj.style.left = 0 + "px";
+                    //     X = 0;
+                    // }
                   
                     canvasObj.onmouseup = function () {
                         moveFlag = false;
                         if (clickFlag) {
-                            alert("点击生效");
+                            //alert("点击生效");
                         }
                     }
                 }
@@ -199,7 +232,9 @@
     }
 
 
-    renderVideoProgress(0);
+    var canvasObj = document.getElementById("video-progress");
+    renderVideoProgress(canvasObj,0);
+    bindVernierEvent(canvasObj);
 </script>
 
 </html>
