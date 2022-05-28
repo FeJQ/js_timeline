@@ -33,6 +33,24 @@
             width: 100px;
             height: 30px;
         }
+        #vernier-info
+        {
+            padding: 20px 0px;
+            font-size: 21px;
+        }
+        #indexOfGrid
+        {
+            color: red;
+        }
+        #distanceToCurrentGrid
+        {
+            color:red;
+        }
+        #distanceOfSection
+        {
+            padding: 20px 0px;
+            font-size: 21px;
+        }
     </style>
 
 </head>
@@ -41,8 +59,9 @@
     </br>
     <div id="container">
         <fieldset class="layui-elem-field layui-field-title" style="margin-top: 30px;">
-            <legend>基本滑块</legend>
         </fieldset>
+        <p id="vernier-info">游标当前处于第<span id="indexOfGrid">0</span>个格子,距离格子的起点<span id="distanceToCurrentGrid">0</span>px</p>
+        <p id="distanceOfSection">格子间距:</p>
         <div id="slideTest1" class="demo-slider"></div>
         <canvas id="video-progress" width="8000" height="100"></canvas>
     </div>
@@ -61,17 +80,31 @@
     // 每两个红色线条之间的黑色线条数
     const sectionCount = 10;
 
+    // 距离画布左端的间隔
+    const scalePaddingLeft = 4;
+
     //当scaleFactor为零时游标刻度偏移px
     let vernierValuePosZero = 0;
 
     // 实际游标刻度偏移px
     let vernierValuePos = 0;
 
-    const scalePaddingLeft = 0;
+    
 
     // 缩放因子
     let scaleFactor = 0;
 
+    // 游标目前所在的格子的索引
+    let gridOfVernierValue = 0;
+
+    // 游标目前距离所在的格子的起点的距离
+    let distanceToStartingPoint = 0;
+
+    function showSectionInfo()
+    {
+        document.getElementById("distanceOfSection").innerText = "格子间距="+(defaultVideoProgressDistance+scaleFactor)+"px,"+"游标偏移="+vernierValuePos+"px";
+    }
+    showSectionInfo();
 
     layui.use('slider', function () {
         var $ = layui.$, slider = layui.slider;
@@ -84,14 +117,32 @@
                 //canvasObj.style.width= 10+"px";
                 canvasObj.style.height = "100px";
 
-                vernierValuePos =  (defaultVideoProgressDistance+scaleFactor)/defaultVideoProgressDistance*vernierValuePosZero;
-                console.log("vernierValuePos="+vernierValuePos);
+                //vernierValuePos =  (defaultVideoProgressDistance+scaleFactor)/defaultVideoProgressDistance*vernierValuePosZero;
+                //console.log("vernierValuePos="+vernierValuePos);
                 renderVideoProgress(canvasObj,scaleFactor);
-
+                showSectionInfo();
             }
         });
     });
 
+
+    // 通过游标的绝对位置来计算其当前处于哪一个格子，以及与当前格子的起点的距离
+    function calcVernierGridInfoByAbsolutePosition(absPos)
+    {
+        gridOfVernierValue = parseInt(absPos/(defaultVideoProgressDistance + scaleFactor));
+        distanceToStartingPoint = absPos%(defaultVideoProgressDistance + scaleFactor);
+
+        let maxGridCount = (redLineCount-1)*sectionCount;
+        if(gridOfVernierValue>maxGridCount)
+        {
+            gridOfVernierValue = maxGridCount;
+            distanceToStartingPoint = 0;
+        }
+
+        //console.log("absPos="+absPos);
+        //console.log("gridOfVernierValue="+gridOfVernierValue);
+        //console.log("distanceToStartingPoint="+distanceToStartingPoint);
+    }
 
     function drawScale(canvasContext, factor) {
         for (var i = 0; i < redLineCount; i++) {
@@ -121,18 +172,30 @@
         }
     }
 
-    function drawVernier(canvasContext, offsetX) {
-        canvasContext.beginPath();
-        canvasContext.fillStyle = "#FF0000";
-        canvasContext.rect(offsetX, 0, 9, 10);
-        canvasContext.strokeStyle = "red";
-        canvasContext.fill();
-        canvasContext.lineWidth = 2;
+    function drawVernier(canvasContext) {
 
-        canvasContext.rect(offsetX+4, 0, 1, 150);
+        let offsetX = gridOfVernierValue*(defaultVideoProgressDistance+scaleFactor)+distanceToStartingPoint;
+
+
+        vernierValuePos = offsetX;
+
+        canvasContext.beginPath();
+        canvasContext.fillStyle = "#FF0000";  
+        canvasContext.strokeStyle = "red";
+
+        canvasContext.rect(offsetX+scalePaddingLeft, 0, 1, 150);
+        canvasContext.rect(offsetX+scalePaddingLeft-4, 0, 9, 10);
         canvasContext.fill();
-        
         canvasContext.closePath();
+        //console.log("Vernier Position X="+offsetX);
+        
+        
+
+        document.getElementById("indexOfGrid").innerText = gridOfVernierValue;
+        document.getElementById("distanceToCurrentGrid").innerHTML = distanceToStartingPoint;
+
+        showSectionInfo();
+        
         //console.log("offsetX="+offsetX);
         
     }
@@ -147,7 +210,7 @@
         clearCanvas("video-progress");
         var ctx = canvasObj.getContext("2d");
         drawScale(ctx, factor);
-        drawVernier(ctx, vernierValuePos);
+        drawVernier(ctx);
 
 
         
@@ -168,16 +231,27 @@
             var mheight = clickEvent.clientY - canvasObj.offsetTop;
 
             let clickPosXTemp = clickEvent.clientX;
+            //console.log("clickPosXTemp="+clickPosXTemp);
 
             // ctx.fillRect(mwidth, mheight, 2, 2);
             // ctx.fillStyle = "#FFFFFF";
             // ctx.stroke();
 
             // 再绘制一遍游标,让其成为当前路径
-            drawVernier(ctx, vernierValuePos);
+            drawVernier(ctx);
 
-            console.log("click width="+mwidth+",click height="+e.offsetX);
-            if (!ctx.isPointInPath(e.offsetX, e.offsetY) )
+            //console.log("click width="+mwidth+",click height="+e.offsetX);
+
+            console.log("e.offsetX="+e.offsetX);
+            console.log("e.offsetY="+e.offsetY);
+
+            console.log("1="+(e.offsetX >= (vernierValuePos+scalePaddingLeft-4)));
+            console.log("2="+(e.offsetX <= (vernierValuePos+scalePaddingLeft-4+9)));
+            console.log("3="+(e.offsetY >=0));
+            console.log("4="+(e.offsetY <= 10));
+
+            //let isClickedVernierRect = (e.offsetX >= (vernierValuePos+scalePaddingLeft-4)) && (e.offsetX <= (vernierValuePos+scalePaddingLeft-4+9)) && (e.offsetY >=0) && (e.offsetY <= 10); 
+            if (!ctx.isPointInPath(e.offsetX, e.offsetY))
             {   
                 console.log("未点击游标");
                 return;
@@ -194,7 +268,7 @@
                     canvasObj.style.left = moveEvent.clientX - mwidth + "px";
                     canvasObj.style.top = moveEvent.clientY - mheight + "px";
                     // 计算移动的距离
-                    console.log("moveEvent.clientX="+moveEvent.clientX,"clickEvent.clientX="+clickEvent.clientX );
+                    //console.log("moveEvent.clientX="+moveEvent.clientX,"clickEvent.clientX="+clickEvent.clientX );
                     X = moveEvent.clientX - clickEvent.clientX;
                     Y = moveEvent.clientY - clickEvent.clientY;
                     //console.log("x="+X+",y="+Y);
@@ -203,9 +277,28 @@
                     clickPosXTemp =  moveEvent.clientX;
                     vernierValuePos+=relativeMovedOffsetX;
                     vernierValuePosZero = vernierValuePos;
+
+                    // 禁止为负,否则游标会超过左边边界
+                    if(vernierValuePos<0)
+                    {
+                        vernierValuePos=0;
+                    }
+                    else if(vernierValuePos>(redLineCount-1)*sectionCount*(defaultVideoProgressDistance+scaleFactor))
+                    {
+                        vernierValuePos = (redLineCount-1)*sectionCount*(defaultVideoProgressDistance+scaleFactor);
+                    }
+
+                    //console.log("vernierValuePos="+vernierValuePos);
+
+                    calcVernierGridInfoByAbsolutePosition(vernierValuePos);
                     renderVideoProgress(canvasObj,scaleFactor);
 
                     
+                    // 如果鼠标移出了canvas的范围,则判定为鼠标抬起
+                    if(moveEvent.clientX < canvasObj.offsetLeft || moveEvent.clientX > canvasObj.width || moveEvent.clientY < canvasObj.offsetTop || moveEvent.offsetY > canvasObj.height)
+                    {
+                        moveFlag = false;
+                    }
 
 
                     ////              下面四个条件为限制div以及图像的活动边界
