@@ -94,11 +94,15 @@
     // 缩放因子
     let scaleFactor = 0;
 
+    let oldScaleFactor = 0;
+
     // 游标目前所在的格子的索引
     let gridOfVernierValue = 0;
 
     // 游标目前距离所在的格子的起点的距离
     let distanceToStartingPoint = 0;
+
+    
 
     function showSectionInfo()
     {
@@ -116,6 +120,9 @@
                 var canvasObj = document.getElementById("video-progress");
                 //canvasObj.style.width= 10+"px";
                 canvasObj.style.height = "100px";
+
+                distanceToStartingPoint = distanceToStartingPoint* (scaleFactor+defaultVideoProgressDistance)/(oldScaleFactor+defaultVideoProgressDistance);
+                oldScaleFactor = scaleFactor;
 
                 //vernierValuePos =  (defaultVideoProgressDistance+scaleFactor)/defaultVideoProgressDistance*vernierValuePosZero;
                 //console.log("vernierValuePos="+vernierValuePos);
